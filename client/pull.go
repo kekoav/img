@@ -11,6 +11,7 @@ import (
 	imageexporter "github.com/moby/buildkit/exporter/containerimage"
 	"github.com/moby/buildkit/source"
 	"github.com/moby/buildkit/source/containerimage"
+	//"github.com/moby/buildkit/util/pull"
 )
 
 // Pull retrieves an image from a remote registry.
@@ -41,8 +42,12 @@ func (c *Client) Pull(ctx context.Context, image string) (*ListedImage, error) {
 	}
 
 	cm, err := cache.NewManager(cache.ManagerOpt{
-		Snapshotter:   opt.Snapshotter,
-		MetadataStore: opt.MetadataStore,
+		Snapshotter:    opt.Snapshotter,
+		MetadataStore:  opt.MetadataStore,
+		ContentStore:   opt.ContentStore,
+		LeaseManager:   opt.LeaseManager,
+		GarbageCollect: opt.GarbageCollect,
+		Applier:        opt.Applier,
 	})
 	if err != nil {
 		return nil, err
@@ -55,6 +60,8 @@ func (c *Client) Pull(ctx context.Context, image string) (*ListedImage, error) {
 		Applier:       opt.Applier,
 		CacheAccessor: cm,
 		ImageStore:    opt.ImageStore,
+		RegistryHosts: opt.RegistryHosts,
+		LeaseManager:  opt.LeaseManager,
 	}
 	src, err := containerimage.NewSource(srcOpt)
 	if err != nil {
@@ -79,8 +86,11 @@ func (c *Client) Pull(ctx context.Context, image string) (*ListedImage, error) {
 		return nil, err
 	}
 	expOpt := imageexporter.Opt{
-		Images:      opt.ImageStore,
-		ImageWriter: iw,
+		SessionManager: sm,
+		ImageWriter:    iw,
+		Images:         opt.ImageStore,
+		RegistryHosts:  opt.RegistryHosts,
+		LeaseManager:   opt.LeaseManager,
 	}
 	exp, err := imageexporter.New(expOpt)
 	if err != nil {
@@ -103,6 +113,15 @@ func (c *Client) Pull(ctx context.Context, image string) (*ListedImage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("calculating size of image %s failed: %v", img.Name, err)
 	}
+
+	//p := pull.Puller{
+	//	Snapshotter:  opt.Snapshotter,
+	//	ContentStore: opt.ContentStore,
+	//	Applier:      opt.Applier,
+	//	Src:          reference.Spec{},
+	//	Platform:     opt.Platforms,
+	//	Resolver:     nil,
+	//}
 
 	return &ListedImage{Image: img, ContentSize: size}, nil
 }
